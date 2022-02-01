@@ -71,7 +71,13 @@ class Capture:
     def __init__(self, interface):
         self.iface = interface
 
+    def setenv(self):
+        if "./tmp" not in glob.glob("./"):
+            os.mkdir("./tmp")
+
     def captureNetwork(self):
+        self.setenv()
+
         cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/airodump --output-format csv {self.iface}'"
         os.system(cmd)
 
