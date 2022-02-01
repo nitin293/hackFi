@@ -166,6 +166,8 @@ def runner(interface, wordlist):
 
 if __name__ == '__main__':
 
+    banner()
+
     if os.name=="posix":
         parser = argparse.ArgumentParser()
 
