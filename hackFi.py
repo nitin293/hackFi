@@ -22,6 +22,8 @@ Author: Nitin Choudhury
 Version: 0.1.0
     '''
 
+    print(ban)
+
 
 class Interface:
 
