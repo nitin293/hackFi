@@ -161,7 +161,7 @@ def runner(interface, wordlist):
     else:
         print("[!] Unable to start Monitor Mode")
 
-
+    ifacectrl.startNetManager()
 
 
 if __name__ == '__main__':
