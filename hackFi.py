@@ -157,15 +157,16 @@ def runner(interface, wordlist):
         index = int(input("\nEnter ESSID Index >> "))
         bssid, essid, channel = capture.extractInfo(index=index, networkDF=net_df)
 
-        print("\n\nPress Ctrl+C when you see WPA")
+        print("\nPress Ctrl+C when you see WPA[Hanshake Captured-*")
         capture.grabCAP(bssid=bssid, channel=channel)
 
+        print("[+] Cracking Password")
         password = cracker.aircrack()
         if password:
             print(f"\n[+] KEY FOUND : {password}\n\n")
 
         else:
-            print("\n[-] Sorry, Unable to find the key!")
+            print("\n[-] Sorry, Unable to find the key!\n\n")
 
         managed_mode = ifacectrl.disableMonitorMode()
         if managed_mode:
