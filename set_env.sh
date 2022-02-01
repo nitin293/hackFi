@@ -1,9 +1,11 @@
 #!/bin/bash
 
-mkdir bin
-sudo apt update
-sudo apt install rfkill
-sudo apt install ethtool
-sudo apt install aircrack-ng
-sudo apt install python3-pip
+[ -d "./tmp" ] && echo "Directory ./trash exists." || mkdir ./tmp
+sudo apt-get update -y
+sudo apt-get install xterm -y
+sudo apt-get install rfkill -y
+sudo apt-get install ethtool -y
+sudo apt-get install aircrack-ng -y
+sudo apt-get install python3 -y
+sudo apt-get install python3-pip -y
 sudo pip3 install pandas

