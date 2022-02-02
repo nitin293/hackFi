@@ -73,7 +73,7 @@ class Capture:
         self.iface = interface
 
     def setenv(self):
-        if "./tmp" not in glob.glob("./"):
+        if "./tmp" not in glob.glob("./*"):
             os.mkdir("./tmp")
 
     def captureNetwork(self):
