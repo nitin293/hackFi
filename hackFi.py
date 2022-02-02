@@ -5,6 +5,7 @@ from threading import Thread
 import glob
 import re
 import argparse
+import time
 
 
 def banner():
@@ -108,6 +109,7 @@ class Capture:
         t2 = Thread(target=self.deauth, args=(bssid,))
 
         t1.start()
+        time.sleep(2)
         t2.start()
 
         t2.join()
