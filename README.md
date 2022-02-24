@@ -18,9 +18,14 @@ sudo bash set_env.sh
 ```
 sudo python3 hackFi.py --help
 ```
-[!img](assets/0.png)
+![img](assets/0.png)
 * Extract wireless interface you want to use
 ```
 sudo python3 hackFi.py -i <interface> -w <path/to/password_file>
 ```
-[!img](assets/1.png)
+![img](assets/1.png)
+![img](assets/2.png)
+![img](assets/3.png)
+![img](assets/4.png)
+![img](assets/5.png)
+![img](assets/6.png)
