@@ -28,4 +28,3 @@ sudo python3 hackFi.py -i <interface> -w <path/to/password_file>
 ![img](assets/3.png)
 ![img](assets/4.png)
 ![img](assets/5.png)
-![img](assets/6.png)
